@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Gateway · FastAPI</title>
+<style>
+
+
+  :root{
+    --bg: #0F1720;
+    --panel: #172330;
+    --panel-2: #1D2B3A;
+    --border: #2A3B4D;
+    --text: #E7EEF5;
+    --muted: #8296AC;
+    --ok: #3CC9A6;
+    --warn: #E7A53E;
+    --err: #E8596C;
+    --info: #5B8FEF;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  body{
+    padding: 20px 14px 40px;
+  }
+
+  .app{
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  h1{
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle{
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 0 0 20px;
+  }
+
+  .diagram{
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .node{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .node-title{
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 0 0 2px;
+  }
+
+  .node-sub{
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+
+  .connector{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 26px;
+    justify-content: center;
+    color: var(--border);
+  }
+  .connector .line{
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+  }
+  .connector .arrow{
+    font-size: 0.7rem;
+    line-height: 1;
+    margin-top: -2px;
+    color: var(--muted);
+  }
+
+  .modules{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .module{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 8px;
+    font-size: 0.68rem;
+    color: var(--muted);
+    transition: background 0.25s, color 0.25s, border-color 0.25s;
+  }
+  .module b{
+    display:block;
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .module.flash-ok{ border-color: var(--ok); color: var(--ok); }
+  .module.flash-err{ border-color: var(--err); color: var(--err); }
+
+  .instances{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .instance{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .inst-left{ display:flex; flex-direction:column; gap: 3px; min-width: 0; }
+
+  .inst-name{
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .dot{
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+  .dot.healthy{ background: var(--ok); }
+  .dot.degraded{ background: var(--warn); }
+  .dot.circuit-open{ background: var(--err); }
+  .dot.half-open{ background: var(--info); }
+
+  .inst-status{
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .inst-counts{
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .inst-right{
+    display:flex; flex-direction:column; align-items:flex-end; gap:6px;
+    flex-shrink: 0;
+  }
+
+  button{
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  button:hover{ border-color: var(--info); }
+  button:focus-visible{ outline: 2px solid var(--info); outline-offset: 2px; }
+  button:active{ transform: translateY(1px); }
+
+  .fail-toggle.active{
+    border-color: var(--err);
+    color: var(--err);
+  }
+
+  .controls{
+    display: flex;
+    gap: 8px;
+    margin: 18px 0 10px;
+  }
+  .controls button{
+    flex: 1;
+    padding: 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+  .btn-primary{ border-color: var(--info); color: var(--info); }
+  .btn-primary:hover{ background: rgba(91,143,239,0.1); }
+
+  .legend{
+    display:flex; gap: 14px; color: var(--muted); font-size: 0.68rem;
+    margin-bottom: 14px;
+  }
+  .legend span{ display:flex; align-items:center; gap:5px; }
+  .legend .dot{ width:7px; height:7px; }
+
+  .log-panel{
+    background: #0B1119;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .log-header{
+    display:flex; justify-content: space-between; align-items:center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .log-header button{
+    padding: 3px 8px; font-size: 0.65rem; background: transparent;
+  }
+  .log-body{
+    height: 200px;
+    overflow-y: auto;
+    padding: 8px 12px;
+    font-size: 0.68rem;
+    line-height: 1.6;
+  }
+  .log-line{ white-space: pre-wrap; word-break: break-word; }
+  .log-time{ color: var(--muted); margin-right: 6px; }
+  .log-line.ok{ color: var(--ok); }
+  .log-line.err{ color: var(--err); }
+  .log-line.sys{ color: var(--info); }
+
+  .packet{
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--info);
+    top: 0; left: 0;
+    box-shadow: 0 0 8px currentColor;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .module, button{ transition: none; }
+  }
+
+/* Refined dashboard */
+:root{--bg:#f5f6f8;--panel:#fff;--panel-2:#f6f8fa;--border:#e1e6ed;--text:#202c3e;--muted:#68788e;--ok:#148864;--warn:#bd7a15;--err:#d54a61;--info:#5674df}
+body{padding:0 28px 32px;font-family:Inter,"Segoe UI",Arial,sans-serif;background:radial-gradient(ellipse at top right,#e9eeff,transparent 45%),var(--bg)}
+.app{max-width:1280px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;margin:auto}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:24px 0;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:750;letter-spacing:-.6px}.brand-icon{background:#283e50;color:#b6f2d5;border-radius:12px;padding:9px 12px;font:700 22px monospace}.brand small{color:var(--muted);font-size:11px;border-left:1px solid #cbd4df;padding-left:14px;margin-left:8px;letter-spacing:1px}
+.live{font-size:12px;color:var(--ok);display:flex;align-items:center;gap:8px}.live:before{content:'';width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px #e1f3eb}
+.hero{grid-column:1/-1;padding-top:9px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--info);margin-bottom:12px}h1{font:700 clamp(25px,3.5vw,38px)/1.2 "Segoe UI",sans-serif;letter-spacing:-1.5px;margin-bottom:12px}.subtitle{max-width:770px;font-size:14px;line-height:1.75;margin:0}
+.metrics{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.metric{background:#ffffffce;border:1px solid var(--border);border-radius:15px;padding:18px 22px;display:grid;grid-template-columns:1fr auto;gap:12px}.metric label{font-size:12px;color:var(--muted)}.metric strong{font-size:28px;font-weight:650;letter-spacing:-1px;grid-column:1}.metric em{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;background:var(--panel-2);padding:10px;border-radius:12px;color:var(--muted);font-size:18px}
+.stage{background:#fff;border:1px solid var(--border);border-radius:18px;overflow:hidden;min-width:0}.panel-title{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-title h2,.sidebar h2{font-size:15px;margin:0;font-weight:650}.panel-title span{font:11px Consolas,monospace;color:var(--muted)}
+.diagram{padding:28px 32px;background-image:radial-gradient(#dce3ec 1px,transparent 1px);background-size:18px 18px}.node{border-radius:14px;padding:17px 20px;box-shadow:0 4px 12px #182e4c04}.node-title{font-family:inherit;font-size:15px}.node-sub{font:11px Consolas,monospace;margin-top:5px}#node-client{width:65%;align-self:center;position:relative}#node-client:after{content:'HTTPS';position:absolute;right:18px;top:25px;font:10px Consolas,monospace;color:var(--muted);background:var(--panel-2);padding:5px 8px;border-radius:5px}#node-gateway{border-color:#aebcf2;box-shadow:0 0 0 4px #eef1ff;position:relative}#node-gateway>.node-title{color:#4965ca}#node-gateway>.node-sub{position:absolute;right:20px;top:19px}.connector{height:30px}.modules{grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.module{font-size:10px;padding:13px 10px;background:#f8f9fe;border-color:#e6eafa;line-height:1.6;border-radius:9px}.module b{font-size:11px;margin-bottom:4px}.module.flash-ok{background:#e7f7ef}.module.flash-err{background:#fff0f1}
+.instances{gap:10px}.instance{padding:16px 18px;border-radius:12px;box-shadow:0 3px 10px #182e4c03}.inst-name{font-family:Consolas,monospace;font-size:13px;flex-wrap:wrap}.inst-status{font-size:11px;margin-top:5px}.inst-counts{font-size:11px;margin-top:4px}.dot.healthy{box-shadow:0 0 0 3px #e5f4ed}.fail-toggle{font-size:11px;padding:8px 11px;background:white}.fail-toggle.active{background:#fff0f2}.legend{margin:0;padding:17px 24px;border-top:1px solid var(--border);font-size:11px}
+.sidebar{display:flex;flex-direction:column;gap:18px}.control-card,.guide{background:white;border:1px solid var(--border);border-radius:18px;padding:23px}.sidebar p{color:var(--muted);font-size:12px;line-height:1.8;margin:12px 0 0}.controls{flex-direction:column;margin:20px 0 0;gap:10px}.controls button{padding:13px 15px;border-radius:9px;font-size:12px}.btn-primary{background:#5674df;color:white;border-color:#5674df;box-shadow:0 4px 10px #5674df25}.btn-primary:hover{background:#4563ce}.control-note{font:10px/1.8 Consolas,monospace;color:var(--muted);margin-top:14px}.guide ol{padding:0;margin:20px 0 0;list-style:none;counter-reset:steps}.guide li{counter-increment:steps;position:relative;padding:0 0 20px 34px;font-size:12px;line-height:1.7;color:var(--muted)}.guide li:last-child{padding-bottom:0}.guide li:before{content:counter(steps);position:absolute;left:0;top:0;width:23px;height:23px;display:grid;place-items:center;background:#eef2fc;border-radius:7px;color:var(--info);font-size:11px;font-weight:700}.guide li b{display:block;color:var(--text);font-weight:600}.sandbox-note{background:#eaf0ed;border:1px solid #dbe6df;color:#506b5c;padding:18px 20px;border-radius:14px;font-size:12px;line-height:1.8}
+.log-panel{grid-column:1/-1;background:#172334;border-color:#172334;border-radius:16px;--muted:#8fa0b6;--text:#e7edf5;--ok:#73d9b1;--info:#9eb5ff;--err:#ff8da1}.log-header{padding:16px 22px;border-color:#2b3b50;font-size:12px}.log-header>span:before{content:'>_';color:#b1c2e1;margin-right:10px}.log-header button{color:#b3c2d4;border-color:#405169;padding:5px 12px;font-size:11px}.log-body{font:11px/1.9 Consolas,monospace;height:220px;padding:14px 22px;color:#c1cede}.log-line{padding:3px 0;border-bottom:1px solid #ffffff04}.footer{grid-column:1/-1;display:flex;justify-content:space-between;color:var(--muted);font-size:11px;padding:0 3px}.packet{outline:3px solid #ffffffc0}.metric strong[data-tone=ok]{color:var(--ok)}.metric strong[data-tone=err]{color:var(--err)}
+@media(min-width:1100px){.diagram{padding:28px 42px}.instance{padding:17px 20px}}
+@media(max-width:950px){.app{grid-template-columns:minmax(0,1fr) 280px}.modules{grid-template-columns:1fr 1fr}.diagram{padding:24px 20px}.inst-name{font-size:11px}.inst-name>span:last-child{display:none}}
+@media(max-width:740px){body{padding:0 16px 24px}.app{grid-template-columns:1fr;gap:18px}.topbar{padding:18px 0}.brand small{display:none}.hero{padding-top:4px}.metrics{grid-template-columns:1fr 1fr;gap:10px}.metric{padding:15px}.metric strong{font-size:25px}.sidebar{grid-row:4}.guide,.sandbox-note{display:none}.control-card{padding:18px}.controls{flex-direction:row;margin-top:14px}.control-note{display:none}.control-card p{margin-top:7px}.stage{grid-column:1}.diagram{padding:24px 18px}.inst-name{font-size:12px}.footer{font-size:10px;gap:12px}.live{font-size:11px}#node-client{width:85%}.subtitle{font-size:13px}.panel-title{padding:18px}.panel-title span{font-size:10px}}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="topbar"><div class="brand"><span class="brand-icon">⇄</span>Gateway Lab <small>INTERACTIVE PLAYGROUND</small></div><span class="live">Đang kết nối backend…</span></header>
+<section class="hero"><div class="eyebrow">KHÁM PHÁ HỆ THỐNG PHÂN TÁN</div><h1>Một request. Cả một hành trình.</h1><p class="subtitle">Theo dõi cách API Gateway điều phối request đến <b>order-service</b>. Thử tạo tải, mô phỏng sự cố và khám phá cách hệ thống tự bảo vệ — qua các dịch vụ FastAPI thật.</p></section>
+<section class="metrics" aria-label="Thống kê mô phỏng"><div class="metric"><label>Request đã gửi</label><strong id="stat-total">0</strong><em>↗</em></div><div class="metric"><label>Thành công · 200</label><strong id="stat-ok" data-tone="ok">0</strong><em>✓</em></div><div class="metric"><label>Lỗi / bị chặn</label><strong id="stat-error" data-tone="err">0</strong><em>!</em></div><div class="metric"><label>Instance CLOSED</label><strong id="stat-health">3 / 3</strong><em>▤</em></div></section>
+<section class="stage"><div class="panel-title"><h2>Luồng xử lý request</h2><span>CLIENT → GATEWAY → SERVICE</span></div>
+  <div class="diagram" id="diagram">
+
+    <div class="node" id="node-client">
+      <div class="node-title">Client</div>
+      <div class="node-sub">trình duyệt · fetch /api/orders</div>
+    </div>
+
+    <div class="connector"><div class="line"></div><div class="arrow">▾</div></div>
+
+    <div class="node" id="node-gateway">
+      <div class="node-title">API Gateway</div>
+      <div class="node-sub">:8080</div>
+      <div class="modules">
+        <div class="module" id="mod-auth"><b>Auth</b>demo công khai</div>
+        <div class="module" id="mod-rl"><b>Rate Limiter</b><span id="rl-count">0/6 mỗi 3s</span></div>
+        <div class="module" id="mod-lb"><b>Load Balancer</b>round robin</div>
+        <div class="module" id="mod-cb"><b>Circuit Breaker</b>ngưỡng 3 lỗi</div>
+      </div>
+    </div>
+
+    <div class="connector"><div class="line"></div><div class="arrow">▾</div></div>
+
+    <div class="instances" id="instances"></div>
+
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--ok)"></i>thành công</span>
+    <span><i class="dot" style="background:var(--err)"></i>lỗi / bị chặn</span>
+  </div>
+
+</section><aside class="sidebar"><section class="control-card"><h2>Điều khiển hệ thống</h2><p>Bắt đầu bằng một request, hoặc tạo tải để quan sát giới hạn truy cập.</p>  <div class="controls">
+    <button class="btn-primary" id="btn-send">Gửi 1 request</button>
+    <button id="btn-spam">Gửi 15 liên tục</button>
+  </div>
+
+<label style="display:block;font-size:12px;margin-top:16px">Khóa điều khiển demo<input id="control-key" type="password" value="local-demo-key" autocomplete="off" style="display:block;width:100%;padding:10px;margin-top:8px;border:1px solid #dbe1e8;border-radius:8px"></label><div class="control-note">GET /api/orders · Giới hạn: 6 request / 3 giây</div></section><section class="guide"><h2>Thử nghiệm nhanh</h2><ol><li><b>Gửi một request</b>Quan sát gói tin đi qua Gateway và trở về client.</li><li><b>Tạo tải liên tục</b>Gửi 15 request để thấy Rate Limiter trả mã 429.</li><li><b>Gây lỗi một instance</b>Sau 3 lỗi liên tiếp trên cùng instance, Circuit Breaker mở. Đợi 6 giây, tắt lỗi rồi gửi request để phục hồi.</li></ol></section><div class="sandbox-note"><b>Học bằng cách thử.</b><br>Request đi qua Gateway FastAPI tới 3 tiến trình Order Service thật. Dữ liệu đơn hàng là mẫu, chưa có cơ sở dữ liệu.</div></aside>
+  <div class="log-panel">
+    <div class="log-header">
+      <span>Nhật ký xử lý <span style="opacity:.5;margin-left:8px">/ live events</span></span>
+      <button id="btn-clear">Xóa nhật ký</button>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+<footer class="footer"><span>Gateway Lab · API Gateway · FastAPI</span><span>Round Robin / Rate Limiting / Circuit Breaker</span></footer>
+</div>
+
+<script>
+(() => {
+ const $ = id => document.getElementById(id);
+ let latest = 0, state = null, polling = false, busyBurst = false;
+ const log = (text,type='sys',time=new Date().toLocaleTimeString()) => {
+   const line=document.createElement('div'); line.className='log-line '+type;
+   const stamp=document.createElement('span'); stamp.className='log-time'; stamp.textContent=time;
+   line.append(stamp,document.createTextNode(text)); $('log-body').append(line);
+   while($('log-body').children.length>400) $('log-body').firstElementChild.remove();
+   $('log-body').scrollTop=$('log-body').scrollHeight;
+ };
+ const flash = (id,ok) => { const el=$(id);el.classList.add(ok?'flash-ok':'flash-err');setTimeout(()=>el.classList.remove('flash-ok','flash-err'),500); };
+ function render(data){
+   state=data;
+   $('stat-total').textContent=data.stats.total;
+   $('stat-ok').textContent=data.stats.success;
+   $('stat-error').textContent=data.stats.errors;
+   $('stat-health').textContent=data.instances.filter(i=>i.state==='closed').length+' / '+data.instances.length;
+   $('rl-count').textContent=`${data.rate_count}/${data.rate_limit} mỗi ${data.rate_window}s`;
+   for(const inst of data.instances){
+     let card=$('inst-'+inst.id);
+     if(!card){
+       card=document.createElement('div');card.className='instance';card.id='inst-'+inst.id;
+       card.innerHTML='<div class="inst-left"><div class="inst-name"><span class="dot"></span><span class="name"></span></div><div class="inst-status"></div><div class="inst-counts"></div></div><div class="inst-right"><button class="fail-toggle"></button><button class="slow-toggle"></button></div>';
+       card.querySelector('.fail-toggle').onclick=()=>configure(inst.id,'fail');
+       card.querySelector('.slow-toggle').onclick=()=>configure(inst.id,'slow');
+       $('instances').append(card);
+     }
+     card.querySelector('.name').textContent=inst.name;
+     card.querySelector('.dot').className='dot '+(inst.state==='open'?'circuit-open':inst.state==='half-open'?'half-open':inst.failures?'degraded':'healthy');
+     card.querySelector('.inst-status').textContent=inst.state.toUpperCase()+(inst.simulateFailure?' · gây lỗi 500':'')+' · '+inst.delay_ms+'ms';
+     card.querySelector('.inst-counts').textContent=`${inst.successCount} thành công · ${inst.failCount} lỗi`;
+     const fail=card.querySelector('.fail-toggle');fail.textContent=inst.simulateFailure?'Ngừng gây lỗi':'Gây lỗi';fail.classList.toggle('active',inst.simulateFailure);fail.setAttribute('aria-pressed',inst.simulateFailure);
+     const slow=card.querySelector('.slow-toggle');slow.textContent=inst.delay_ms>2000?'Tắt chậm':'Chậm 3 giây';slow.setAttribute('aria-pressed',inst.delay_ms>2000);
+   }
+   if(data.events.length && data.events.at(-1).id<latest){latest=0;log('Backend đã khởi động lại.');}
+   for(const e of data.events) if(e.id>latest){log(e.message,e.type,e.time);latest=e.id;}
+ }
+ async function poll(){
+   if(polling)return;polling=true;
+   try{const r=await fetch('/api/state',{signal:AbortSignal.timeout(4000)});if(!r.ok)throw Error('HTTP '+r.status);render(await r.json());document.querySelector('.live').textContent='Backend đã kết nối';}
+   catch(e){document.querySelector('.live').textContent='Mất kết nối backend';}
+   finally{polling=false;}
+ }
+ async function configure(id,action){
+   const inst=state.instances.find(i=>i.id===id);
+   try{const r=await fetch(`/api/instances/${id}/fault`,{method:'PUT',headers:{'Content-Type':'application/json','X-Control-Key':$('control-key').value},body:JSON.stringify({fail:action==='fail'?!inst.simulateFailure:inst.simulateFailure,delay_ms:action==='slow'?(inst.delay_ms>2000?100:3000):inst.delay_ms}),signal:AbortSignal.timeout(5000)});if(!r.ok)throw Error('HTTP '+r.status);await poll();}
+   catch(e){log('Không đổi được trạng thái: '+e.message+' — kiểm tra khóa điều khiển và service.','err');}
+ }
+ async function send(){
+   try{const r=await fetch('/api/orders',{signal:AbortSignal.timeout(6000)});const data=await r.json();flash('mod-rl',r.status!==429);if(data.instance){flash('mod-lb',true);flash('mod-cb',r.ok);const card=$('inst-'+state?.instances.find(i=>i.name===data.instance)?.id);if(card){card.style.borderColor=r.ok?'var(--ok)':'var(--err)';setTimeout(()=>card.style.borderColor='',700);}}await poll();}
+   catch(e){log('Không gọi được Gateway: '+e.message,'err');}
+ }
+ $('btn-send').onclick=send;
+ $('btn-spam').onclick=async()=>{if(busyBurst)return;busyBurst=true;$('btn-spam').disabled=true;await Promise.all(Array.from({length:15},()=>send()));busyBurst=false;$('btn-spam').disabled=false;};
+ $('btn-clear').onclick=()=>{$('log-body').replaceChildren();};
+ if(location.protocol==='file:'){log('Hãy chạy python run.py và mở http://127.0.0.1:8080. Không mở trực tiếp tệp HTML.','err');document.querySelector('.live').textContent='Cần chạy backend';}
+ else{poll();setInterval(poll,700);}
+})();
+</script>
+</body>
+</html>

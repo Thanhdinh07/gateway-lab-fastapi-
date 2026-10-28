@@ -1,0 +1,35 @@
+services:
+  gateway:
+    build: .
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      SERVICE_URLS: http://order1:9000,http://order2:9000,http://order3:9000
+      CONTROL_KEY: ${CONTROL_KEY:-local-demo-key}
+      ALERT_EMAIL_ENABLED: ${ALERT_EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_COOLDOWN_SECONDS: ${ALERT_COOLDOWN_SECONDS:-300}
+    depends_on: [order1, order2, order3]
+  order1:
+    build: .
+    command: uvicorn app.service:app --host 0.0.0.0 --port 9000
+    environment:
+      INSTANCE_NAME: order-service-1
+      CONTROL_KEY: ${CONTROL_KEY:-local-demo-key}
+  order2:
+    build: .
+    command: uvicorn app.service:app --host 0.0.0.0 --port 9000
+    environment:
+      INSTANCE_NAME: order-service-2
+      CONTROL_KEY: ${CONTROL_KEY:-local-demo-key}
+  order3:
+    build: .
+    command: uvicorn app.service:app --host 0.0.0.0 --port 9000
+    environment:
+      INSTANCE_NAME: order-service-3
+      CONTROL_KEY: ${CONTROL_KEY:-local-demo-key}
